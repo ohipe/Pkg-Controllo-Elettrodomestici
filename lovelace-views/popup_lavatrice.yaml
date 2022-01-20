@@ -1,0 +1,180 @@
+
+  ################# POPUP ##########################################################  
+  
+    type: vertical-stack
+    cards:
+    
+    - type: horizontal-stack
+      cards:
+      # Lavatrice Accesa/Spenta
+      - type: custom:button-card
+        entity: binary_sensor.lavatrice_stato
+        icon: mdi:washing-machine
+        color_type: icon
+        name: "[[[ if (entity.state=='on') return 'Accesa'; else return 'Spenta'; ]]]"
+        styles:
+          card: [height: 100px]
+          icon:
+            - color: "[[[ if (entity.state=='off') return 'red'; else return 'lime'; ]]]"
+      # Lavatrice Programma/Stop
+      - type: custom:button-card
+        entity: binary_sensor.lavatrice_programma
+        icon: "[[[ if (entity.state=='off') return 'mdi:stop-circle-outline'; else return 'mdi:play-speed'; ]]]"        
+        name: "[[[ if (entity.state=='off') return 'Stop'; else return 'Programma'; ]]]" 
+        styles:
+          card: [height: 100px]        
+          icon:
+            - color: "[[[ if (states['binary_sensor.lavatrice_stato'].state=='off') return '#666666'; else if (entity.state=='off') return 'gold'; else return 'lime'; ]]]"
+      # Lavatrice Lavaggio in corso
+      - type: custom:button-card
+        entity: binary_sensor.lavatrice_lavaggio
+        icon: mdi:water
+        name: Lavaggio
+        styles:
+          card: [height: 100px] 
+          icon:
+            - color: "[[[ if (entity.state=='on') return 'steelblue'; else return '#666666'; ]]]"
+      # Lavatrice Riscaldamento in corso
+      - type: custom:button-card
+        entity: binary_sensor.lavatrice_riscaldamento
+        icon: mdi:fire
+        name: Riscaldamento
+        styles:
+          card: [height: 100px] 
+          icon:
+            - color: "[[[ if (entity.state=='on') return 'orange'; else return '#666666'; ]]]"
+      # Lavatrice Centrifuga in corso
+      - type: custom:button-card
+        entity: binary_sensor.lavatrice_centrifuga
+        icon: mdi:circle-outline 
+        name: Centrifuga
+        styles:
+          card: [height: 100px] 
+          icon:
+            - color: "[[[ if (entity.state=='on') return 'orange'; else return '#666666'; ]]]"
+      # Lavatrice Stato Alimentazione (popup)
+      - type: custom:button-card
+        entity: switch.plug_lavatrice
+        name: Corrente
+        tap_action:
+          action: more-info
+        icon: "[[[ if (entity.state=='off') return 'mdi:power-plug-off'; else return 'mdi:power-plug'; ]]]"          
+        styles:
+          card: [height: 100px]           
+          icon:
+            - color: "[[[ if (entity.state=='off') return 'red'; else return 'lime'; ]]]"
+
+    - type: horizontal-stack
+      cards:  
+
+      - type: vertical-stack
+        cards:      
+          - type: custom:bar-card
+            entity: sensor.plug_lavatrice_w
+            name: Consumo attuale
+            max: 2000
+            icon: mdi:flash
+            height: 40px
+            severity:
+              - from: 0
+                to: 2
+                color: "gray"             
+              - from: 2
+                to: 5
+                color: "lime"
+              - from: 5
+                to: 1000
+                icon: 'mdi:water'
+                color: "#48b4e0"  
+              - from: 1000
+                to: 1500
+                icon: 'mdi:fire'
+                color: "orange" 
+            style: |
+              .card-header {
+                font-size: 12pt;
+                color: var(--light-primary-color);
+              }                
+          - type: entities
+            title: Notifiche
+            icon: mdi:information
+            show_header_toggle: false
+            entities:     
+              - entity: "automation.lavatrice_notifica_cambio_stato"
+                name: Notifica cambio stato
+                icon: mdi:rotate-right
+                state_color : true
+              - entity: "automation.lavatrice_notifica_fine_programma"
+                name: Notifica fine programma 
+                icon: mdi:cellphone-information
+                state_color : true
+              - entity: "automation.lavatrice_notifica_fine_programma_tts"
+                name: Notifica fine programma Google
+                icon: mdi:bullhorn
+                state_color : true                
+            style: |
+              .card-header {
+                font-size: 12pt;
+                color: var(--light-primary-color);
+              }                
+            
+      - type: entities
+        title: Configurazione fasi 
+        icon: mdi:cogs 
+        style: |
+          .card-header {
+            font-size: 12pt;
+            color: var(--light-primary-color);
+          }   
+        entities:           
+        - entity: input_number.lavatrice_soglia_programma
+          name: "Programma attivo oltre:"
+          icon: mdi:play-speed
+        - entity: input_number.lavatrice_soglia_lavaggio
+          name: "Lavaggio in corso fino a:"
+          icon: mdi:water
+        - entity: input_number.lavatrice_soglia_riscaldamento
+          name: "Riscaldamento acqua oltre:"
+          icon: mdi:fire
+        - entity: input_number.lavatrice_soglia_centrifuga
+          name: "Centrifuga attiva oltre:"
+          icon: mdi:circle-outline
+            
+    - type: horizontal-stack
+      cards: 
+      
+      - type: glance
+        columns: 3
+        show_icon: false
+        title: Storico consumi
+        entities:
+        # - entity: sensor.plug_lavatrice_w
+          # name: Attuale      
+        - entity: sensor.plug_lavatrice_energy_day
+          name: Giorno
+        - entity: sensor.plug_lavatrice_energy_mth
+          name: Mese
+        - entity: sensor.plug_lavatrice_kwh
+          name: Totale
+        style: |
+          .card-header {
+            font-size: 12pt;
+            color: var(--light-primary-color);
+          }  
+      - type: glance
+        columns: 2
+        show_icon: false
+        title: Diagnosi Plug
+        entities:
+          - entity: sensor.diagn_plug_lavatrice_temp
+            name: Temperatura Plug
+          - entity: sensor.diagn_plug_lavatrice_overtemp
+            name: Allarme temp Plug
+        style: |
+          .card-header {
+            font-size: 12pt;
+            color: var(--light-primary-color);
+          }          
+           
+      
+      

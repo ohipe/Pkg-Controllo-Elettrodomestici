@@ -1,0 +1,215 @@
+########################################################################### 
+#
+# Package LAVATRICE
+#
+###########################################################################  
+homeassistant:
+  customize:
+    sensor.lavatrice_fase_programma:
+      friendly_name: Stato lavatrice   
+      icon: mdi:home-alert
+    sensor.plug_lavatrice_w:
+      friendly_name: Consumo lavatrice   
+      icon: mdi:home-alert
+    sensor.plug_lavatrice_energy_day:
+      friendly_name: Lavatrice   
+      icon: mdi:counter
+    sensor.plug_lavatrice_energy_mth:
+      friendly_name: Lavatrice   
+      icon: mdi:counter       
+    switch.plug_lavatrice:
+      friendly_name: Plug lavatrice   
+      icon: mdi:home-alert
+
+# Soglie fasi programma ###################################################
+      
+input_number:
+  lavatrice_soglia_programma:
+    name: Lavatrice soglia Programma
+    min: 1
+    max: 10
+    unit_of_measurement: 'w'
+    initial: 3
+    mode: box
+  lavatrice_soglia_lavaggio:
+    name: Lavatrice soglia Lavaggio
+    min: 5
+    max: 300
+    unit_of_measurement: 'w'
+    initial: 200
+    mode: box
+  lavatrice_soglia_riscaldamento:
+    name: Lavatrice soglia Riscaldamento
+    min: 1000
+    max: 2000
+    unit_of_measurement: 'w'
+    initial: 1500
+    mode: box
+  # lavatrice_soglia_risciacquo:
+    # name: Lavatrice soglia Risciacquo
+    # min: 100
+    # max: 500
+    # unit_of_measurement: 'w'
+    # initial: 200
+    # mode: box
+  lavatrice_soglia_centrifuga:
+    name: Lavatrice soglia Centrifuga
+    min: 100
+    max: 500
+    unit_of_measurement: 'w'
+    initial: 200
+    mode: box
+
+# Binary sensor: stato lavatrice #####################################
+   
+binary_sensor:
+  - platform: template
+    sensors:
+      lavatrice_stato:
+        value_template: >-
+          {{ states('sensor.plug_lavatrice_w')|int > 0 }}
+        device_class: power
+        delay_on:
+          seconds: 5
+        delay_off:
+          seconds: 15
+      lavatrice_programma:
+        value_template: >-
+          {{ states('sensor.plug_lavatrice_w')|int > states('input_number.lavatrice_soglia_programma')|int }}
+        device_class: power
+        delay_on:
+          seconds: 5
+        delay_off:
+          seconds: 15         
+      lavatrice_riscaldamento:
+        value_template: >-
+          {{ states('sensor.plug_lavatrice_w')|int > states('input_number.lavatrice_soglia_riscaldamento')|int }}
+        delay_on:
+          seconds: 2
+        delay_off:
+          seconds: 2
+      lavatrice_lavaggio:
+        value_template: >-
+          {{ states('sensor.plug_lavatrice_w')|int < states('input_number.lavatrice_soglia_lavaggio')|int and states('sensor.plug_lavatrice_w')|int > states('input_number.lavatrice_soglia_programma')|int }}
+        delay_on:
+          seconds: 5
+        delay_off:
+          seconds: 15
+      # lavatrice_risciacquo:
+        # value_template: >-
+          # {{ states('sensor.plug_lavatrice_w')|int < states('input_number.lavatrice_soglia_centrifuga')|int and states('sensor.plug_lavatrice_w')|int > states('input_number.lavatrice_soglia_lavaggio')|int }}
+        # delay_on:
+          # seconds: 5
+        # delay_off:
+          # seconds: 5         
+      lavatrice_centrifuga:
+        value_template: >-
+          {{ states('sensor.plug_lavatrice_w')|int < states('input_number.lavatrice_soglia_riscaldamento')|int and states('sensor.plug_lavatrice_w')|int > states('input_number.lavatrice_soglia_centrifuga')|int }}
+        delay_on:
+          seconds: 5
+        delay_off:
+          seconds: 5
+
+# Sensori #################################################################
+
+sensor:
+  # 
+  # Fase programma
+  - platform: template
+    sensors:
+      lavatrice_fase_programma:
+        value_template: >-
+          {% if is_state('binary_sensor.lavatrice_riscaldamento', 'on') %}
+            Riscaldamento
+          {% elif is_state('binary_sensor.lavatrice_lavaggio', 'on') %}
+            Lavaggio
+          {% elif is_state('binary_sensor.lavatrice_centrifuga', 'on') %}
+            Centrifuga          
+          {% else %}
+            Stop
+          {% endif %}          
+  # 
+  # Plug-s  
+  - platform: mqtt
+    name: plug_lavatrice_w
+    state_topic: "shellies/shellyplug-s-ABC123/relay/0/power"
+    unit_of_measurement: 'W'
+    force_update: true  
+  - platform: mqtt
+    name: diagn_plug_lavatrice_temp
+    state_topic: "shellies/shellyplug-s-ABC123/temperature"
+    unit_of_measurement: 'C'  
+  - platform: mqtt
+    name: diagn_plug_lavatrice_overtemp
+    state_topic: "shellies/shellyplug-s-ABC123/overtemperature"    
+  # 
+  # Power to Energy
+  - platform: integration
+    source: sensor.plug_lavatrice_w
+    name: plug_lavatrice_kWh
+    unit_prefix: k
+    unit_time: h  
+    method: left 
+
+# Daily-Monthly Energy ####################################################
+
+utility_meter:
+  plug_lavatrice_energy_day:
+    source: sensor.plug_lavatrice_kWh
+    cycle: daily  
+  plug_lavatrice_energy_mth:
+    source: sensor.plug_lavatrice_kWh
+    cycle: monthly     
+
+# PLUG-S ON/OF ############################################################
+
+switch:
+  - platform: mqtt
+    name: "plug_lavatrice"
+    command_topic: "shellies/shellyplug-s-ABC123/relay/0/command"
+    state_topic: "shellies/shellyplug-s-ABC123/relay/0"
+    retain: false
+    payload_on: "on"
+    payload_off: "off"
+
+# Automations #############################################################
+   
+automation:
+  - alias: "Lavatrice__Notifica_cambio_stato"
+    trigger:
+      platform: state
+      entity_id: sensor.lavatrice_fase_programma
+    condition: []
+    action:
+       service: notify.mobile_app_oneplus_a6003
+       data_template:
+         title: "Lavatrice"
+         message: "Cambio stato: da {{ trigger.from_state.state }} a {{ trigger.to_state.state }}"   
+  - alias: "Lavatrice__Notifica_fine_programma"
+    trigger:
+      platform: state
+      entity_id: sensor.lavatrice_fase_programma
+      from: "Lavaggio"
+      to: "Stop"
+      for: '00:00:05'
+    condition: []
+    action:
+       service: notify.mobile_app_oneplus_a6003
+       data_template:
+         title: "Lavatrice"
+         message: "Programma terminato"   
+  - alias: "Lavatrice__Notifica_fine_programma_tts"
+    trigger:
+      platform: state
+      entity_id: binary_sensor.lavatrice_programma
+      from: "on"
+      to: "off"
+      for: '00:00:05'
+    condition: []
+    action:
+      service: tts.google_say
+      entity_id: media_player.diffusione
+      data:
+        message: 'Programma lavatrice terminato'
+        language: 'it'
+###########################################################################         
